@@ -43,6 +43,7 @@ def stop_movie():
 
 def graceful_exit(signum=None, frame=None):
     logger.info("\nExiting ...")
+    stop_movie()
     epd.close()
     sys.exit(0)
 
