@@ -3,7 +3,7 @@ document.getElementById("uploadForm").addEventListener("submit", async (e) => {
   const formData = new FormData(e.target);
   const msgBox = document.getElementById("msg");
   msgBox.innerText = "⏳ 正在上传并处理...";
-  msgBox.style.color = "black";
+  msgBox.style.color = "white";
 
   try {
     const res = await fetch("/upload", {
@@ -43,5 +43,17 @@ document.getElementById("shutdownBtn").addEventListener("click", async () => {
     document.getElementById("msg").innerText = "💤 " + data.message;
   } catch (err) {
     document.getElementById("msg").innerText = "❌ 关机失败: " + err;
+  }
+});
+
+document.getElementById("playMovie").addEventListener("click", async () => {
+  const msg = document.getElementById("msg");
+  msg.innerText = "🎬 正在启动电影播放...";
+  try {
+    const res = await fetch("/play_movie", { method: "POST" });
+    const data = await res.json();
+    msg.innerText = "🎞️ " + data.message;
+  } catch (err) {
+    msg.innerText = "❌ 播放失败: " + err;
   }
 });
