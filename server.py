@@ -54,6 +54,10 @@ signal.signal(signal.SIGTERM, graceful_exit)
 def index():
     return redirect("/index.html")
 
+@app.route("/<path:filename>")
+def serve_file(filename):
+    return send_from_directory("templates", filename)
+
 @app.route("/play_movie", methods=["POST"])
 def play_movie():
     global movie_process
