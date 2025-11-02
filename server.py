@@ -3,7 +3,6 @@ from io import BytesIO
 from flask import Flask, send_from_directory, redirect, request, jsonify
 from PIL import Image, ImageDraw, ImageFont
 from omni_epd import displayfactory, EPDNotFoundError
-from toolkit.jarvis_dither import process_frame_to_1bpp
 
 
 # init logger
@@ -18,33 +17,24 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, "static")
 )
 
-# init ePaper
-try:
-    epd = displayfactory.load_display_driver("waveshare_epd.epd7in5_V2")
-except EPDNotFoundError:
-    valid = displayfactory.list_supported_displays()
-    logger.error(f"无法加载 ePaper 驱动，请检查名称。可用驱动：\n{valid}")
-    sys.exit(1)
-
-movie_process = None
-def stop_movie():
+display_process = None
+def stop_display():
     """停止正在播放的 lmdb_epaper_player.py"""
-    global movie_process
-    if movie_process and movie_process.poll() is None:
-        logger.info("正在结束电影播放进程...")
-        movie_process.terminate()
+    global display_process
+    if display_process and display_process.poll() is None:
+        logger.info("正在结束播放进程...")
+        display_process.terminate()
         try:
-            movie_process.wait(timeout=3)
+            display_process.wait(timeout=3)
         except subprocess.TimeoutExpired:
-            movie_process.kill()
+            display_process.kill()
         logger.info("播放进程已结束。")
-        movie_process = None
+        display_process = None
 
 
 def graceful_exit(signum=None, frame=None):
     logger.info("\nExiting ...")
-    stop_movie()
-    epd.close()
+    stop_display()
     sys.exit(0)
 
 signal.signal(signal.SIGINT, graceful_exit)
@@ -61,8 +51,8 @@ def serve_file(filename):
 
 @app.route("/play_movie", methods=["POST"])
 def play_movie():
-    global movie_process
-    stop_movie()
+    global display_process
+    stop_display()
     
     try:
         logger.info("Start to play the movie...")
@@ -70,7 +60,7 @@ def play_movie():
             "/home/baoste/epaper-env/bin/python",
             "/home/baoste/epaper2xl/lmdb_epaper_player.py"
         ]
-        movie_process = subprocess.Popen(
+        display_process = subprocess.Popen(
             cmd,
             stdout=sys.stdout,
             stderr=sys.stderr,
@@ -84,47 +74,38 @@ def play_movie():
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    stop_movie()
+    global display_process
+    stop_display()
 
     os.makedirs("./.img_tmp", exist_ok=True)
     text = request.form.get("text", "").strip()
     file = request.files.get("image")
 
-    tmp_path = None
-    img = None
-
+    tmp_path = ""
+    
     try:
         if file and file.filename:  # 上传了图片
             tmp_path = f"./.img_tmp/{file.filename}"
             file.save(tmp_path)
             logger.info(f"Received file: {tmp_path}")
-            img = Image.open(tmp_path).convert("L")
-            val = process_frame_to_1bpp(img)
-            img = Image.open(BytesIO(val))
-
         elif text:  # 没有图片，仅输入了文字
             logger.info(f"Creating text-only image: '{text}'")
-            img = Image.new("1", (800, 480), 255)  # 白底灰度图
-            draw = ImageDraw.Draw(img)
-            try:
-                font = ImageFont.truetype("/home/baoste/fonts/WenYue-XinQingNianTi-W8-J-2.otf", 36)
-            except:
-                font = ImageFont.load_default()
-            bbox = draw.textbbox((0, 0), text, font=font)
-            text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            pos = ((800 - text_w) // 2, (480 - text_h) // 2)
-            draw.text(pos, text, font=font, fill=0)
         else:
             return jsonify({"status": "error", "message": "未提供图片或文字"}), 400
 
-        if epd:
-            epd.prepare()
-            epd.display(img)
-            time.sleep(3)
-            epd.sleep()
-            logger.info("Displayed on ePaper.")
-        else:
-            logger.warning("ePaper not initialized.")
+        cmd = [
+            "/home/baoste/epaper-env/bin/python",
+            "/home/baoste/epaper2xl/display.py"
+            "--img_path", tmp_path,
+            "--text", text
+        ]
+        display_process = subprocess.Popen(
+            cmd,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+            text=True
+        )
+        logger.info("Start SUCCESS")
 
         return jsonify({"status": "ok", "message": f"Displayed {'text' if not file else 'image'}"})
 
@@ -132,14 +113,9 @@ def upload():
         logger.error(f"Display failed: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            os.remove(tmp_path)
-            logger.info("Temporary file deleted.")
-
 @app.route("/shutdown", methods=["POST"])
 def shutdown_pi():
-    stop_movie()
+    stop_display()
 
     try:
         logger.warning("Received shutdown request! Shutting down system...")
