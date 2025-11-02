@@ -47,7 +47,7 @@ def main():
         img = Image.new("1", (800, 480), 255)
         draw = ImageDraw.Draw(img)
         try:
-            font = ImageFont.truetype("/home/baoste/fonts/WenYue-XinQingNianTi-W8-J-2.otf", 36)
+            font = ImageFont.truetype("/home/baoste/fonts/WenYue-XinQingNianTi-W8-J-2.otf", 64)
         except:
             font = ImageFont.load_default()
         bbox = draw.textbbox((0, 0), args.text, font=font)

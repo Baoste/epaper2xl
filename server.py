@@ -54,7 +54,7 @@ def play_movie():
         cmd = [
             "/home/baoste/epaper-env/bin/python",
             "/home/baoste/epaper2xl/display_movie.py",
-            "--frame_start", 0
+            #"--frame_start", str(0)
         ]
         display_process = subprocess.Popen(
             cmd,

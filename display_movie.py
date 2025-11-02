@@ -36,7 +36,7 @@ def load_frame_state():
             with open(frame_state_file, "r") as f:
                 data = json.load(f)
                 current_frame = data.get("frame", 0)
-                logger.info(f"从上次进度恢复：frame={current_frame}")
+                logger.info(f"从上次进度恢复: frame={current_frame}")
         except Exception as e:
             logger.warning(f"无法读取上次进度: {e}")
 
