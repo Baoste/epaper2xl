@@ -52,6 +52,7 @@ signal.signal(signal.SIGTERM, graceful_exit)
 
 
 def main():
+    global current_frame
     load_frame_state()
 
     # ---- 参数解析 ----
