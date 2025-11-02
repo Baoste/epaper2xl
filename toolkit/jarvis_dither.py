@@ -5,7 +5,7 @@ Used to convert 8-bit grayscale to 1-bit black/white with smooth diffusion.
 
 import io
 import numpy as np
-from numba import jit
+# from numba import jit
 from PIL import Image
 
 # ===== Config =====
@@ -14,7 +14,7 @@ RATIO = TARGET_W / TARGET_H
 
 
 # ===== Core algorithm =====
-@jit(nopython=True)
+# @jit(nopython=True)
 def jarvis_dither_core(arr, h, w):
     """
     Main JJN diffusion kernel (Numba accelerated)
