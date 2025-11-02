@@ -1,9 +1,5 @@
 import sys, logging, os, time, signal, subprocess
-from io import BytesIO
 from flask import Flask, send_from_directory, redirect, request, jsonify
-from PIL import Image, ImageDraw, ImageFont
-from omni_epd import displayfactory, EPDNotFoundError
-
 
 # init logger
 logging.basicConfig(level=getattr(logging, "INFO"), format="%(levelname)s: %(message)s")
@@ -95,7 +91,7 @@ def upload():
 
         cmd = [
             "/home/baoste/epaper-env/bin/python",
-            "/home/baoste/epaper2xl/display.py"
+            "/home/baoste/epaper2xl/display.py",
             "--img_path", tmp_path,
             "--text", text
         ]

@@ -33,7 +33,7 @@ def main():
         description="Play LMDB 1-bit frames on ePaper display",
     )
     parser.add_argument("--lmdb_dir", default="/home/baoste/lmdb_frames", help="Directory containing LMDB files")
-    parser.add_argument("--base_name", default="frames_dataset", help="LMDB file prefix")
+    parser.add_argument("--base_name", default="frame_dataset", help="LMDB file prefix")
     parser.add_argument("--delay", type=float, default=5.0, help="Delay between frames (seconds)")
     parser.add_argument("--loop", action="store_true", default=True, help="Loop playback")
     args = parser.parse_args()
