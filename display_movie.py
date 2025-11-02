@@ -1,4 +1,4 @@
-import os, sys, time, lmdb, signal, logging
+import os, sys, time, lmdb, signal, logging, json
 from io import BytesIO
 from PIL import Image
 from omni_epd import displayfactory, EPDNotFoundError
@@ -18,8 +18,32 @@ except EPDNotFoundError:
     sys.exit(1)
 
 
+frame_state_file = "/home/baoste/epaper2xl/state.json"
+current_frame = 0
+
+def save_frame_state():
+    try:
+        with open(frame_state_file, "w") as f:
+            json.dump({"frame": current_frame}, f)
+        logger.info(f"已保存播放进度: frame={current_frame}")
+    except Exception as e:
+        logger.error(f"保存帧数失败: {e}")
+
+def load_frame_state():
+    global current_frame
+    if os.path.exists(frame_state_file):
+        try:
+            with open(frame_state_file, "r") as f:
+                data = json.load(f)
+                current_frame = data.get("frame", 0)
+                logger.info(f"从上次进度恢复：frame={current_frame}")
+        except Exception as e:
+            logger.warning(f"无法读取上次进度: {e}")
+
+
 def graceful_exit(signum=None, frame=None):
     logger.info("Exiting ...")
+    save_frame_state()
     epd.close()
     sys.exit(0)
 
@@ -28,6 +52,8 @@ signal.signal(signal.SIGTERM, graceful_exit)
 
 
 def main():
+    load_frame_state()
+
     # ---- 参数解析 ----
     parser = configargparse.ArgumentParser(
         description="Play LMDB 1-bit frames on ePaper display",
@@ -35,6 +61,7 @@ def main():
     parser.add_argument("--lmdb_dir", default="/home/baoste/lmdb_frames", help="Directory containing LMDB files")
     parser.add_argument("--base_name", default="frame_dataset", help="LMDB file prefix")
     parser.add_argument("--delay", type=float, default=5.0, help="Delay between frames (seconds)")
+    parser.add_argument("--frame_start", type=int, default=current_frame, help="Start frame")
     args = parser.parse_args()
 
     # ---- 获取 LMDB 列表 ----
@@ -49,6 +76,7 @@ def main():
 
     # ---- 主播放循环 ----
     while True:
+        total = 0
         for lmdb_name in lmdb_files:
             full_path = os.path.join(args.lmdb_dir, lmdb_name)
             logger.info(f"Opening {lmdb_name} ...")
@@ -63,12 +91,26 @@ def main():
                 cursor = txn.cursor()
 
                 if not cursor.first():
+                    env.close()
                     logger.warning(f"{lmdb_name} is empty, skipping.")
                     continue
-
+                
+                total += txn.stat()["entries"]
+                if args.frame_start > total:
+                    env.close()
+                    current_frame = total
+                    logger.info(f"Skip {lmdb_name}")
+                    continue
+                
+                logger.info(f"Start playing ...")
                 for key, val in cursor:
                     if not val:
                         continue
+
+                    current_frame += 1
+                    if args.frame_start > current_frame:
+                        continue
+
                     try:
                         img = Image.open(BytesIO(val))
                         epd.prepare()

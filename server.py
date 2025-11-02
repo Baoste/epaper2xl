@@ -15,7 +15,6 @@ app = Flask(
 
 display_process = None
 def stop_display():
-    """停止正在播放的 lmdb_epaper_player.py"""
     global display_process
     if display_process and display_process.poll() is None:
         logger.info("正在结束播放进程...")
@@ -54,7 +53,8 @@ def play_movie():
         logger.info("Start to play the movie...")
         cmd = [
             "/home/baoste/epaper-env/bin/python",
-            "/home/baoste/epaper2xl/lmdb_epaper_player.py"
+            "/home/baoste/epaper2xl/display_movie.py",
+            "--frame_start", 0
         ]
         display_process = subprocess.Popen(
             cmd,
@@ -91,7 +91,7 @@ def upload():
 
         cmd = [
             "/home/baoste/epaper-env/bin/python",
-            "/home/baoste/epaper2xl/display.py",
+            "/home/baoste/epaper2xl/display_img.py",
             "--img_path", tmp_path,
             "--text", text
         ]
