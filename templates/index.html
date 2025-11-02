@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ePaper 控制面板</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="container">
+  <h1>🖤 ePaper 控制面板</h1>
+
+  <form id="uploadForm" enctype="multipart/form-data">
+    <label>📸 上传图片（可选）</label>
+    <input type="file" name="image" accept="image/*">
+
+    <label>📝 输入文字（可选）</label>
+    <input type="text" name="text" placeholder="例如：早上好！">
+
+    <button type="submit" class="btn">上传并显示</button>
+  </form>
+
+  <button id="shutdownBtn" class="btn danger">关机</button>
+
+  <div id="msg" class="message"></div>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
