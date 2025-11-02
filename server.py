@@ -69,8 +69,13 @@ def play_movie():
             "/home/baoste/epaper-env/bin/python",
             "/home/baoste/epaper2xl/lmdb_epaper_player.py"
         ]
-        movie_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        logger.success("Start SUCCESS")
+        movie_process = subprocess.Popen(
+            cmd,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+            text=True
+        )
+        logger.info("Start SUCCESS")
         return jsonify({"status": "ok", "message": "正在播放电影..."})
     except Exception as e:
         logger.error(f"Start FAILED: {e}")
