@@ -8,24 +8,6 @@ from toolkit.functions import *
 logging.basicConfig(level=getattr(logging, "INFO"), format="%(levelname)s: %(message)s")
 logger = logging.getLogger("LMDBPlayer")
 
-# init ePaper
-try:
-    kill_existing_display_scripts(logger)
-    epd = displayfactory.load_display_driver("waveshare_epd.epd7in5_V2")
-except EPDNotFoundError:
-    valid = displayfactory.list_supported_displays()
-    logger.error(f"无法加载 ePaper 驱动，请检查名称。可用驱动：\n{valid}")
-    sys.exit(1)
-
-def graceful_exit(signum=None, frame=None):
-    logger.info("Exiting ...")
-    epd.close()
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, graceful_exit)
-signal.signal(signal.SIGTERM, graceful_exit)
-
-
 def get_time_period(hour: int) -> str:
     if 5 <= hour < 11:
         return "morning"
