@@ -61,7 +61,7 @@ def main():
     )
     parser.add_argument("--lmdb_dir", default="/home/baoste/lmdb_frames", help="Directory containing LMDB files")
     parser.add_argument("--base_name", default="frame_dataset", help="LMDB file prefix")
-    parser.add_argument("--delay", type=float, default=5.0, help="Delay between frames (seconds)")
+    parser.add_argument("--delay", type=float, default=120.0, help="Delay between frames (seconds)")
     parser.add_argument("--frame_start", type=int, default=current_frame, help="Start frame")
     args = parser.parse_args()
 
