@@ -1,9 +1,7 @@
 import datetime, logging, sys, signal
-import os, time
-import subprocess
-import re
 import random
 from omni_epd import displayfactory, EPDNotFoundError
+from toolkit.functions import kill_existing_display_scripts
 
 # init logger
 logging.basicConfig(level=getattr(logging, "INFO"), format="%(levelname)s: %(message)s")
@@ -11,6 +9,7 @@ logger = logging.getLogger("LMDBPlayer")
 
 # init ePaper
 try:
+    kill_existing_display_scripts()
     epd = displayfactory.load_display_driver("waveshare_epd.epd7in5_V2")
 except EPDNotFoundError:
     valid = displayfactory.list_supported_displays()
@@ -25,23 +24,6 @@ def graceful_exit(signum=None, frame=None):
 signal.signal(signal.SIGINT, graceful_exit)
 signal.signal(signal.SIGTERM, graceful_exit)
 
-def kill_existing_display_scripts():
-    try:
-        output = subprocess.check_output(["ps", "aux"], text=True)
-        current_pid = os.getpid()
-
-        for line in output.splitlines():
-            # 过滤出 display_*.py 的进程
-            if re.search(r"python.*display_.*\.py", line):
-                parts = line.split()
-                pid = int(parts[1])
-                if pid != current_pid:
-                    logger.info(f"检测到旧进程：{line}")
-                    os.system(f"kill {pid}")
-                    time.sleep(5)
-                    logger.info(f"已结束进程 PID {pid}")
-    except Exception as e:
-        logger.error(f"杀进程时出错: {e}")
 
 def get_time_period(hour: int) -> str:
     if 5 <= hour < 11:

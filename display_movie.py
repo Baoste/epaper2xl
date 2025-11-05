@@ -19,24 +19,24 @@ except EPDNotFoundError:
 
 
 frame_state_file = "/home/baoste/epaper2xl/state.json"
-current_frame = 0
+frame_start = 0
 
 def save_frame_state():
     try:
         with open(frame_state_file, "w") as f:
-            json.dump({"frame": current_frame}, f)
-        logger.info(f"已保存播放进度: frame={current_frame}")
+            json.dump({"frame": frame_start}, f)
+        logger.info(f"已保存播放进度: frame={frame_start}")
     except Exception as e:
         logger.error(f"保存帧数失败: {e}")
 
 def load_frame_state():
-    global current_frame
+    global frame_start
     if os.path.exists(frame_state_file):
         try:
             with open(frame_state_file, "r") as f:
                 data = json.load(f)
-                current_frame = data.get("frame", 0)
-                logger.info(f"从上次进度恢复: frame={current_frame}")
+                frame_start = data.get("frame", 0)
+                logger.info(f"从上次进度恢复: frame={frame_start}")
         except Exception as e:
             logger.warning(f"无法读取上次进度: {e}")
 
@@ -52,7 +52,7 @@ signal.signal(signal.SIGTERM, graceful_exit)
 
 
 def main():
-    global current_frame
+    global frame_start
     load_frame_state()
 
     # ---- 参数解析 ----
@@ -62,7 +62,7 @@ def main():
     parser.add_argument("--lmdb_dir", default="/home/baoste/lmdb_frames", help="Directory containing LMDB files")
     parser.add_argument("--base_name", default="frame_dataset", help="LMDB file prefix")
     parser.add_argument("--delay", type=float, default=120.0, help="Delay between frames (seconds)")
-    parser.add_argument("--frame_start", type=int, default=current_frame, help="Start frame")
+    parser.add_argument("--frame_start", type=int, default=None, help="Start frame")
     args = parser.parse_args()
 
     # ---- 获取 LMDB 列表 ----
@@ -74,6 +74,10 @@ def main():
         logger.error("Can NOT find any LMDB files")
         sys.exit(1)
     logger.info(f"Detected {len(lmdb_files)} LMDB file(s).")
+
+    if args.frame_start:
+        frame_start = args.frame_start
+    current_frame = 0
 
     # ---- 主播放循环 ----
     while True:
@@ -97,7 +101,7 @@ def main():
                     continue
                 
                 total += txn.stat()["entries"]
-                if args.frame_start > total:
+                if frame_start > total:
                     env.close()
                     current_frame = total
                     logger.info(f"Skip {lmdb_name}")
@@ -109,7 +113,7 @@ def main():
                         continue
 
                     current_frame += 1
-                    if args.frame_start > current_frame:
+                    if frame_start > current_frame:
                         continue
 
                     try:
