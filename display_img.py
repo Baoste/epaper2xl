@@ -48,11 +48,13 @@ def main():
         img = Image.new("1", (800, 480), 255)
         draw = ImageDraw.Draw(img)
         try:
-            font = ImageFont.truetype("/home/baoste/fonts/SourceHanSansSC-VF.otf", 64)
+            font = ImageFont.truetype("/home/baoste/fonts/FangZhengFengYa.TTF", 64)
         except:
             font = ImageFont.load_default()
 
-        wrapped_text = textwrap.fill(args.text, width=8)
+        text_width = (len(args.text) // 2 + 1) if len(args.text) > 8 else 8
+
+        wrapped_text = textwrap.fill(args.text, width=text_width)
         bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=10, align="center")
         text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         pos = ((800 - text_w) // 2, (480 - text_h) // 2)

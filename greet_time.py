@@ -1,8 +1,10 @@
-import datetime, logging, sys, signal
+import datetime, logging, sys
 import random, subprocess, time
 import requests
 from omni_epd import displayfactory, EPDNotFoundError
 from toolkit.functions import *
+
+random.seed()
 
 # init logger
 logging.basicConfig(level=getattr(logging, "INFO"), format="%(levelname)s: %(message)s")
@@ -68,6 +70,7 @@ def main():
         stderr=sys.stderr,
         text=True
     )
+    logger.info(f"Print {greeting}")
 
     time.sleep(600)
     pid = search_existing_display_scripts()
