@@ -1,5 +1,5 @@
 import datetime, logging, sys, signal
-import random
+import random, subprocess
 from omni_epd import displayfactory, EPDNotFoundError
 from toolkit.functions import kill_existing_display_scripts
 
@@ -72,7 +72,19 @@ def main():
     now = datetime.datetime.now()
     period = get_time_period(now.hour)
     greeting = random_greeting(period)
-    print(greeting)
+
+    cmd = [
+            "/home/baoste/epaper-env/bin/python",
+            "/home/baoste/epaper2xl/display_img.py",
+            "--img_path", "",
+            "--text", greeting
+    ]
+    subprocess.Popen(
+        cmd,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        text=True
+    )
 
 if __name__ == "__main__":
     main()

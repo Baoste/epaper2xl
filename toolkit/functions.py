@@ -14,7 +14,7 @@ def kill_existing_display_scripts(logger):
                 pid = int(parts[1])
                 if pid != current_pid:
                     logger.info(f"检测到旧进程：{line}")
-                    os.system(f"kill {pid}")
+                    os.system(f"sudo kill {pid}")
                     time.sleep(5)
                     logger.info(f"已结束进程 PID {pid}")
     except Exception as e:
