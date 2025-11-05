@@ -9,7 +9,7 @@ logger = logging.getLogger("LMDBPlayer")
 
 # init ePaper
 try:
-    kill_existing_display_scripts()
+    kill_existing_display_scripts(logger)
     epd = displayfactory.load_display_driver("waveshare_epd.epd7in5_V2")
 except EPDNotFoundError:
     valid = displayfactory.list_supported_displays()
