@@ -1,7 +1,8 @@
 import datetime, logging, sys, signal
-import random, subprocess
+import random, subprocess, time
+import requests
 from omni_epd import displayfactory, EPDNotFoundError
-from toolkit.functions import kill_existing_display_scripts
+from toolkit.functions import *
 
 # init logger
 logging.basicConfig(level=getattr(logging, "INFO"), format="%(levelname)s: %(message)s")
@@ -85,6 +86,12 @@ def main():
         stderr=sys.stderr,
         text=True
     )
+
+    time.sleep(600)
+    pid = search_existing_display_scripts()
+    if not pid:
+        url = "http://127.0.0.1/play_movie"
+        requests.post(url)
 
 if __name__ == "__main__":
     main()

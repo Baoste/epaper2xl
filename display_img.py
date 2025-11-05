@@ -4,6 +4,7 @@ from toolkit.jarvis_dither import process_frame_to_1bpp
 from PIL import Image, ImageDraw, ImageFont
 from omni_epd import displayfactory, EPDNotFoundError
 import configargparse
+import textwrap
 
 # init logger
 logging.basicConfig(level=getattr(logging, "INFO"), format="%(levelname)s: %(message)s")
@@ -47,13 +48,15 @@ def main():
         img = Image.new("1", (800, 480), 255)
         draw = ImageDraw.Draw(img)
         try:
-            font = ImageFont.truetype("/home/baoste/fonts/WenYue-XinQingNianTi-W8-J-2.otf", 64)
+            font = ImageFont.truetype("/home/baoste/fonts/SourceHanSansSC-VF.otf", 64)
         except:
             font = ImageFont.load_default()
-        bbox = draw.textbbox((0, 0), args.text, font=font)
+
+        wrapped_text = textwrap.fill(args.text, width=8)
+        bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=10, align="center")
         text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         pos = ((800 - text_w) // 2, (480 - text_h) // 2)
-        draw.text(pos, args.text, font=font, fill=0)
+        draw.multiline_text(pos, wrapped_text, font=font, fill=0, spacing=10, align="center")
 
     if img:
         epd.prepare()
