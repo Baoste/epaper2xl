@@ -34,7 +34,7 @@ def main():
     )
 
     parser.add_argument("--img_path", type=str, default="", help="Image to display")
-    parser.add_argument("--text", type=str, default="", help="Text to display")
+    parser.add_argument("--text", type=str, default="", help=r"Text to display (supports \n line breaks)")
     args = parser.parse_args()
     
     img = None
@@ -52,9 +52,12 @@ def main():
         except:
             font = ImageFont.load_default()
 
-        text_width = (len(args.text) // 2 + 1) if len(args.text) > 8 else 8
+        text = args.text.replace(r"\n", "\n")
+        text_width = (len(text) // 2 + 1) if len(text) > 8 else 8
 
-        wrapped_text = textwrap.fill(args.text, width=text_width)
+        wrapped_text = "\n".join(
+            textwrap.fill(line, width=text_width) for line in text.split("\n")
+        )
         bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=10, align="center")
         text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         pos = ((800 - text_w) // 2, (480 - text_h) // 2)
