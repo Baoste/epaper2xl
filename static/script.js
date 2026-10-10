@@ -1,3 +1,48 @@
+const captureBtn = document.getElementById("captureBtn");
+const cameraMsg = document.getElementById("cameraMsg");
+const cameraPreview = document.getElementById("cameraPreview");
+let photoUrl = null;
+
+captureBtn.addEventListener("click", async () => {
+  if (captureBtn.disabled) return;
+  captureBtn.disabled = true;
+  captureBtn.textContent = "正在拍摄…";
+  cameraMsg.textContent = "正在拍摄，请稍候…";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  let nextUrl = null;
+  try {
+    const res = await fetch("/capture", { method: "POST", signal: controller.signal });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || `拍摄失败（HTTP ${res.status}）`);
+    }
+    if (!res.headers.get("Content-Type")?.startsWith("image/jpeg")) {
+      throw new Error("服务未返回照片，请重试");
+    }
+    nextUrl = URL.createObjectURL(await res.blob());
+    // 确认新照片能解码后再替换，拍摄失败时保留上一张。
+    const photo = new Image();
+    photo.src = nextUrl;
+    await photo.decode();
+    cameraPreview.src = nextUrl;
+    cameraPreview.hidden = false;
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+    photoUrl = nextUrl;
+    nextUrl = null;
+    cameraMsg.textContent = `拍摄成功 · ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    cameraMsg.textContent = err.name === "AbortError"
+      ? "请求超时，请稍后重试"
+      : `❌ ${err.message}`;
+  } finally {
+    clearTimeout(timeout);
+    if (nextUrl) URL.revokeObjectURL(nextUrl);
+    captureBtn.disabled = false;
+    captureBtn.textContent = "📷 拍摄照片";
+  }
+});
+
 document.getElementById("uploadForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const formData = new FormData(e.target);

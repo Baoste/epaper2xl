@@ -89,6 +89,28 @@ input[type="text"] {
   gap: 12px;
 }
 
+.camera {
+  margin-top: 20px;
+}
+
+#cameraMsg {
+  margin: 0;
+  color: #ffcc70;
+  font-size: 0.95rem;
+}
+
+#cameraPreview {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
+  transform: none;
+}
+
 .message {
   margin-top: 16px;
   font-size: 0.95rem;

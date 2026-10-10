@@ -8,7 +8,7 @@ import time
 import uuid
 from typing import List, Optional, Tuple
 
-from flask import Flask, send_from_directory, redirect, request, jsonify
+from flask import Flask, Response, send_from_directory, redirect, request, jsonify
 from werkzeug.utils import secure_filename
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -32,6 +32,7 @@ app = Flask(
 
 display_process: Optional[subprocess.Popen] = None
 display_lock = threading.Lock()
+camera_lock = threading.Lock()
 monitor_stop = threading.Event()
 service_stopping = threading.Event()
 
@@ -199,6 +200,45 @@ def play_movie():
     except Exception as exc:
         logger.exception("启动播放失败")
         return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route("/capture", methods=["POST"])
+def capture_photo():
+    if not camera_lock.acquire(blocking=False):
+        return jsonify(status="error", message="摄像头正在拍摄，请稍后重试"), 409
+
+    try:
+        result = subprocess.run(
+            [
+                "rpicam-still", "--camera", "0", "--nopreview",
+                "--timeout", "1500", "--width", "1296", "--height", "972",
+                "--encoding", "jpg", "--quality", "85", "--output", "-",
+            ],
+            capture_output=True,
+            timeout=20,
+            check=True,
+        )
+        if not result.stdout.startswith(b"\xff\xd8\xff"):
+            logger.error("摄像头未返回 JPEG 图片")
+            return jsonify(status="error", message="摄像头未返回有效照片，请重试"), 502
+        # 照片直接传给浏览器，不在 SD 卡上累积文件。
+        return Response(
+            result.stdout, mimetype="image/jpeg",
+            headers={"Cache-Control": "no-store"},
+        )
+    except FileNotFoundError:
+        return jsonify(status="error", message="找不到 rpicam-still，请先安装 rpicam-apps"), 503
+    except subprocess.TimeoutExpired:
+        logger.warning("摄像头拍摄超时")
+        return jsonify(status="error", message="拍摄超时，请检查摄像头连接或占用情况"), 504
+    except subprocess.CalledProcessError as exc:
+        logger.error("拍摄失败：%s", (exc.stderr or b"").decode("utf-8", errors="replace"))
+        return jsonify(status="error", message="拍摄失败，请检查摄像头是否被占用，并查看服务日志"), 503
+    except OSError:
+        logger.exception("无法启动摄像头")
+        return jsonify(status="error", message="无法启动摄像头，请查看服务日志"), 503
+    finally:
+        camera_lock.release()
 
 
 @app.route("/upload", methods=["POST"])
