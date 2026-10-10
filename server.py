@@ -6,8 +6,10 @@ import sys
 import threading
 import time
 import uuid
+from io import BytesIO
 from typing import List, Optional, Tuple
 
+from PIL import Image
 from flask import Flask, Response, send_from_directory, redirect, request, jsonify
 from werkzeug.utils import secure_filename
 
@@ -211,7 +213,7 @@ def capture_photo():
         result = subprocess.run(
             [
                 "rpicam-still", "--camera", "0", "--nopreview",
-                "--timeout", "1500", "--width", "1296", "--height", "972",
+                "--timeout", "1500", "--width", "640", "--height", "480",
                 "--encoding", "jpg", "--quality", "85", "--output", "-",
             ],
             capture_output=True,
@@ -221,9 +223,18 @@ def capture_photo():
         if not result.stdout.startswith(b"\xff\xd8\xff"):
             logger.error("摄像头未返回 JPEG 图片")
             return jsonify(status="error", message="摄像头未返回有效照片，请重试"), 502
+        # 逆时针旋转 90 度，完整保留画面，输出尺寸变为 480×640。
+        output = BytesIO()
+        try:
+            with Image.open(BytesIO(result.stdout)) as photo:
+                with photo.transpose(Image.Transpose.ROTATE_90) as upright:
+                    upright.save(output, format="JPEG", quality=85)
+        except OSError:
+            logger.exception("摄像头照片解码失败")
+            return jsonify(status="error", message="照片解码失败，请重试"), 502
         # 照片直接传给浏览器，不在 SD 卡上累积文件。
         return Response(
-            result.stdout, mimetype="image/jpeg",
+            output.getvalue(), mimetype="image/jpeg",
             headers={"Cache-Control": "no-store"},
         )
     except FileNotFoundError:

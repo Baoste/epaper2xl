@@ -1,7 +1,8 @@
 ## 网页拍摄
 
 控制面板的“拍摄照片”按钮调用树莓派摄像头 0，拍摄后在页面显示照片。
-默认使用 1296×972 JPEG、质量 85，预热 1.5 秒，整个拍摄进程最多等待 20 秒。
+默认使用 640×480 JPEG、质量 85，预热 1.5 秒，整个拍摄进程最多等待 20 秒。
+照片返回网页前逆时针旋转 90°，完整保留画面，显示尺寸为 480×640。
 照片直接传给浏览器，不保存到 SD 卡；刷新页面后预览清空。拍摄不会触发墨水屏刷新。
 
 依赖系统命令 `rpicam-still`，不需要在 Python 虚拟环境中安装摄像头库。
@@ -9,7 +10,7 @@
 
 ```bash
 command -v rpicam-still
-rpicam-still --camera 0 --nopreview --timeout 1500 --width 1296 --height 972 --output /tmp/camera-test.jpg
+rpicam-still --camera 0 --nopreview --timeout 1500 --width 640 --height 480 --output /tmp/camera-test.jpg
 ```
 
 若命令缺失，可安装 `sudo apt install rpicam-apps`。
