@@ -80,7 +80,7 @@ class FaceCompareTests(unittest.TestCase):
     def test_comparison_scores_and_face_counts(self):
         self.engine.prepare_reference()
         jpeg = self.engine.reference_path.read_bytes()
-        self.assertAlmostEqual(self.engine.compare(jpeg)["similarity"], 1)
+        self.assertAlmostEqual(self.engine.compare(jpeg)["similarity"], 1, places=6)
         self.engine.recognizer.reset_mock()
         for faces, status in ((None, "no_face"), (np.repeat(self.face, 2, axis=0), "multiple_faces")):
             with self.subTest(status=status):

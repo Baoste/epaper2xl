@@ -149,7 +149,8 @@ class FaceComparer:
             return {"status": "multiple_faces", "message": "检测到多张人脸，请只保留一人入镜"}
         feature = self.feature(image, faces[0])
         score = float(self.np.clip(self.np.dot(self.reference_feature, feature), -1, 1))
-        return {"status": "ok", "similarity": round(score, 4)}
+        # Keep precision for the 0.38 policy boundary; the webpage formats the value.
+        return {"status": "ok", "similarity": score}
 
 
 _comparer = None

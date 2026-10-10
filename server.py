@@ -14,6 +14,8 @@ from PIL import Image
 from flask import Flask, Response, send_from_directory, redirect, request, jsonify
 from werkzeug.utils import secure_filename
 from face_compare import compare_photo
+from camera_stream import CameraError, PersistentCamera
+from presence_monitor import run_monitor
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("LMDBPlayer")
@@ -37,6 +39,9 @@ app = Flask(
 display_process: Optional[subprocess.Popen] = None
 display_lock = threading.Lock()
 camera_lock = threading.Lock()
+camera = PersistentCamera()
+display_revision = 0
+presence_displayed = None
 monitor_stop = threading.Event()
 service_stopping = threading.Event()
 
@@ -62,14 +67,14 @@ def stop_display() -> None:
         _stop_display_locked()
 
 
-def start_display(cmd: List[str], *, startup: bool = False) -> Optional[subprocess.Popen]:
+def start_display(cmd: List[str], *, startup: bool = False, automatic: bool = False) -> Optional[subprocess.Popen]:
     """串行管理显示进程；网页操作优先于开机状态显示。"""
-    global display_process
+    global display_process, display_revision
     with display_lock:
         if service_stopping.is_set():
             raise RuntimeError("服务正在退出")
-        if startup:
-            if monitor_stop.is_set():
+        if startup or automatic:
+            if startup and monitor_stop.is_set():
                 return None
             # 自动刷新不打断尚未结束的刷屏，下一轮再显示最新状态。
             if display_process is not None and display_process.poll() is None:
@@ -83,7 +88,50 @@ def start_display(cmd: List[str], *, startup: bool = False) -> Optional[subproce
         display_process = subprocess.Popen(
             cmd, stdout=sys.stdout, stderr=sys.stderr, text=True
         )
+        display_revision += 1
         return display_process
+
+
+def show_presence(text):
+    """Refresh changed text only; wait for completion without interrupting manual work."""
+    global presence_displayed
+    monitor_stop.set()
+    with display_lock:
+        if presence_displayed == (text, display_revision):
+            return
+    proc = start_display([PYTHON, DISPLAY_IMG, "--img_path", "", "--text", text], automatic=True)
+    if proc is None:
+        return  # Retry on the next detection after the current display operation ends.
+    while proc.poll() is None:
+        if service_stopping.wait(0.2):
+            return
+    with display_lock:
+        if proc.returncode == 0 and display_process is proc:
+            presence_displayed = (text, display_revision)
+        elif proc.returncode != 0:
+            logger.warning("自动工位文字显示失败，下轮重试")
+
+
+def capture_and_compare():
+    """Caller holds camera_lock for both the camera and shared OpenCV models."""
+    raw = camera.capture()
+    output = BytesIO()
+    try:
+        with Image.open(BytesIO(raw)) as photo:
+            with photo.transpose(Image.Transpose.ROTATE_90) as upright:
+                with upright.transpose(Image.Transpose.FLIP_LEFT_RIGHT) as mirrored:
+                    mirrored.save(output, format="JPEG", quality=85)
+    except OSError as exc:
+        raise ValueError("摄像头照片解码失败") from exc
+    jpeg = output.getvalue()
+    return jpeg, compare_photo(jpeg)
+
+
+def capture_for_presence():
+    with camera_lock:
+        if service_stopping.is_set():
+            return {"status": "stopping"}
+        return capture_and_compare()[1]
 
 
 def get_wifi_status() -> Tuple[bool, str]:
@@ -212,31 +260,7 @@ def capture_photo():
         return jsonify(status="error", message="摄像头正在拍摄，请稍后重试"), 409
 
     try:
-        result = subprocess.run(
-            [
-                "rpicam-still", "--camera", "0", "--nopreview",
-                "--timeout", "1500", "--width", "640", "--height", "480",
-                "--encoding", "jpg", "--quality", "85", "--output", "-",
-            ],
-            capture_output=True,
-            timeout=20,
-            check=True,
-        )
-        if not result.stdout.startswith(b"\xff\xd8\xff"):
-            logger.error("摄像头未返回 JPEG 图片")
-            return jsonify(status="error", message="摄像头未返回有效照片，请重试"), 502
-        # 逆时针旋转 90 度后左右镜像，完整保留画面，输出尺寸为 480×640。
-        output = BytesIO()
-        try:
-            with Image.open(BytesIO(result.stdout)) as photo:
-                with photo.transpose(Image.Transpose.ROTATE_90) as upright:
-                    with upright.transpose(Image.Transpose.FLIP_LEFT_RIGHT) as mirrored:
-                        mirrored.save(output, format="JPEG", quality=85)
-        except OSError:
-            logger.exception("摄像头照片解码失败")
-            return jsonify(status="error", message="照片解码失败，请重试"), 502
-        jpeg = output.getvalue()
-        comparison = compare_photo(jpeg)
+        jpeg, comparison = capture_and_compare()
         # 照片和对应结果在同一个响应返回，避免多客户端串图。
         return Response(
             jpeg, mimetype="image/jpeg",
@@ -246,13 +270,14 @@ def capture_photo():
             },
         )
     except FileNotFoundError:
-        return jsonify(status="error", message="找不到 rpicam-still，请先安装 rpicam-apps"), 503
-    except subprocess.TimeoutExpired:
+        return jsonify(status="error", message="找不到 rpicam-vid，请先安装 rpicam-apps"), 503
+    except TimeoutError:
         logger.warning("摄像头拍摄超时")
         return jsonify(status="error", message="拍摄超时，请检查摄像头连接或占用情况"), 504
-    except subprocess.CalledProcessError as exc:
-        logger.error("拍摄失败：%s", (exc.stderr or b"").decode("utf-8", errors="replace"))
-        return jsonify(status="error", message="拍摄失败，请检查摄像头是否被占用，并查看服务日志"), 503
+    except CameraError as exc:
+        return jsonify(status="error", message=str(exc)), 503
+    except ValueError:
+        return jsonify(status="error", message="照片解码失败，请重试"), 502
     except OSError:
         logger.exception("无法启动摄像头")
         return jsonify(status="error", message="无法启动摄像头，请查看服务日志"), 503
@@ -286,7 +311,9 @@ def upload():
 @app.route("/shutdown", methods=["POST"])
 def shutdown_pi():
     try:
+        service_stopping.set()
         monitor_stop.set()
+        camera.close()
         stop_display()
         subprocess.Popen(["bash", "-c", "sleep 5 && sudo shutdown -h now"])
         return jsonify({"status": "ok", "message": "5 秒后关机..."})
@@ -306,13 +333,20 @@ if __name__ == "__main__":
     monitor_thread = threading.Thread(
         target=wifi_startup_monitor, name="wifi-startup-monitor", daemon=True
     )
+    presence_thread = threading.Thread(
+        target=run_monitor, args=(capture_for_presence, show_presence, service_stopping),
+        name="presence-monitor", daemon=True,
+    )
     try:
         monitor_thread.start()
+        presence_thread.start()
         logger.info("Flask server running at http://0.0.0.0:80")
         # 避免自动重载器重复启动监控线程。
         app.run(host="0.0.0.0", port=80, debug=False, use_reloader=False)
     finally:
         service_stopping.set()
         monitor_stop.set()
-        monitor_thread.join(timeout=6)
+        camera.close()
         stop_display()
+        monitor_thread.join(timeout=6)
+        presence_thread.join(timeout=10)
