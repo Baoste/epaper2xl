@@ -72,11 +72,25 @@ def main():
     )
     logger.info(f"Print {greeting}")
 
-    time.sleep(1200)
-    pid = search_existing_display_scripts()
-    if not pid:
-        url = "http://127.0.0.1/play_movie"
-        requests.post(url)
+    # time.sleep(1200)
+    # pid = search_existing_display_scripts()
+    # if not pid:
+    #     url = "http://127.0.0.1/play_movie"
+    #     requests.post(url)
+
+    cmd = [
+        "/home/baoste/epaper-env/bin/python",
+        "/home/baoste/epaper2xl/display_img.py",
+        "--img_path", "",
+        "--text", "这里是徐一帆的工位 ^ ^"
+    ]
+    subprocess.Popen(
+        cmd,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        text=True
+    )
+    logger.info(f"Print WELCOME")
 
 if __name__ == "__main__":
     main()
