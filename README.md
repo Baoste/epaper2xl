@@ -2,7 +2,7 @@
 
 控制面板的“拍摄照片”按钮调用树莓派摄像头 0，拍摄后在页面显示照片。
 默认使用 640×480 JPEG、质量 85，预热 1.5 秒，整个拍摄进程最多等待 20 秒。
-照片返回网页前逆时针旋转 90°，完整保留画面，显示尺寸为 480×640。
+照片返回网页前逆时针旋转 90°，再左右镜像，完整保留画面，显示尺寸为 480×640。人脸比对使用同一张镜像照片。
 照片直接传给浏览器，不保存到 SD 卡；刷新页面后预览清空。拍摄不会触发墨水屏刷新。
 
 依赖系统命令 `rpicam-still`，不需要在 Python 虚拟环境中安装摄像头库。
@@ -26,7 +26,7 @@ journalctl -u epaper.service -n 50 --no-pager
 
 ## 拍照后显示人脸相似度
 
-参考照片为项目根目录下的 `ImageYF.png`，需要恰好有一张清晰人脸。
+参考照片为项目目录下的 `imgs/head_photo.jpg`，需要恰好有一张清晰人脸。
 点击“拍摄照片”后，照片下方显示与参考人脸的余弦相似度（-1～1，越接近 1 越相似）和比对耗时。
 这个分数不是身份正确的概率。未检测到人脸、多张人脸、缺少依赖或模型时会显示提示，仍保留拍摄照片。
 
@@ -36,7 +36,7 @@ journalctl -u epaper.service -n 50 --no-pager
 
 - `server.py`、`face_compare.py`、`prepare_face.py`、`requirements-face.txt`
 - `templates/index.html`、`static/script.js`、`static/style.css`
-- `ImageYF.png`
+- `imgs/head_photo.jpg`
 - 可选：已经下载好的 `models/` 和 `.face_cache/`（包含隐藏目录），避免树莓派再次下载和提取参考特征。
 
 在树莓派上执行：
@@ -48,7 +48,7 @@ cd /home/baoste/epaper2xl
 sudo systemctl restart epaper.service
 ```
 
-然后强制刷新网页。准备脚本从 OpenCV 官方仓库下载模型、核对 SHA-256，并保存参考特征到 `.face_cache/ImageYF.npz`。
+然后强制刷新网页。准备脚本从 OpenCV 官方仓库下载模型、核对 SHA-256，并保存参考特征到 `.face_cache/head_photo.npz`。
 如果这些文件已就绪，准备脚本会复用它们；正常拍摄和比对完全离线。
 该缓存及模型目录已加入 `.gitignore`，通过 Git 更新代码时需要另外同步，或在树莓派运行准备脚本生成。
 

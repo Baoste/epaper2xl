@@ -39,7 +39,7 @@ captureBtn.addEventListener("click", async () => {
     }
     faceResult.hidden = false;
     faceResult.textContent = comparison?.status === "ok" && Number.isFinite(comparison.similarity)
-      ? `与参考照片的相似度：${comparison.similarity.toFixed(4)}（余弦值，越接近 1 越相似，非概率） · 比对耗时 ${(comparison.elapsed_ms / 1000).toFixed(2)} 秒`
+      ? `与参考照片的相似度：${comparison.similarity.toFixed(4)} · 比对耗时 ${(comparison.elapsed_ms / 1000).toFixed(2)} 秒`
       : (comparison?.message || "照片已拍摄，未取得比对结果");
     cameraMsg.textContent = `拍摄成功 · ${new Date().toLocaleTimeString()}`;
   } catch (err) {

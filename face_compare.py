@@ -11,8 +11,8 @@ import zipfile
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "models"
-REFERENCE = BASE_DIR / "ImageYF.png"
-CACHE = BASE_DIR / ".face_cache" / "ImageYF.npz"
+REFERENCE = BASE_DIR / "imgs" / "head_photo.jpg"
+CACHE = BASE_DIR / ".face_cache" / "head_photo.npz"
 MODELS = {
     "face_detection_yunet_2023mar.onnx": (
         "face_detection_yunet", "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
@@ -96,7 +96,7 @@ class FaceComparer:
         try:
             stat = self.reference_path.stat()
         except FileNotFoundError as exc:
-            raise FaceSetupError("找不到参考照片 ImageYF.png") from exc
+            raise FaceSetupError("找不到参考照片 imgs/head_photo.jpg") from exc
         signature = (stat.st_mtime_ns, stat.st_size)
         if self.reference_feature is not None and signature == self.reference_stat:
             return

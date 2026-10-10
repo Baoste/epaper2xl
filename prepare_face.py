@@ -1,4 +1,4 @@
-"""Download verified OpenCV models and cache ImageYF.png's face feature."""
+"""Download verified OpenCV models and cache imgs/head_photo.jpg's face feature."""
 
 import os
 import urllib.request

@@ -20,6 +20,7 @@ class CameraTests(unittest.TestCase):
     def test_capture_returns_uncached_jpeg(self):
         photo = Image.new("RGB", (80, 40), "blue")
         photo.paste("red", (0, 0, 40, 40))
+        photo.paste("lime", (40, 0, 80, 20))
         buffer = BytesIO()
         photo.save(buffer, format="JPEG")
         jpeg = buffer.getvalue()
@@ -29,11 +30,14 @@ class CameraTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         with Image.open(BytesIO(response.data)) as upright:
             self.assertEqual(upright.size, (40, 80))
-            # 左红右蓝逆时针旋转后应为上蓝下红。
-            top = upright.getpixel((20, 20))
+            # 旋转后再左右镜像：右下蓝变为左上，右上绿变为右上。
+            top = upright.getpixel((10, 20))
+            top_right = upright.getpixel((30, 20))
             bottom = upright.getpixel((20, 60))
             self.assertGreater(top[2], 200)
             self.assertLess(top[0], 50)
+            self.assertGreater(top_right[1], 200)
+            self.assertLess(top_right[2], 50)
             self.assertGreater(bottom[0], 200)
             self.assertLess(bottom[2], 50)
         self.assertEqual(response.mimetype, "image/jpeg")

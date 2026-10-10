@@ -225,12 +225,13 @@ def capture_photo():
         if not result.stdout.startswith(b"\xff\xd8\xff"):
             logger.error("摄像头未返回 JPEG 图片")
             return jsonify(status="error", message="摄像头未返回有效照片，请重试"), 502
-        # 逆时针旋转 90 度，完整保留画面，输出尺寸变为 480×640。
+        # 逆时针旋转 90 度后左右镜像，完整保留画面，输出尺寸为 480×640。
         output = BytesIO()
         try:
             with Image.open(BytesIO(result.stdout)) as photo:
                 with photo.transpose(Image.Transpose.ROTATE_90) as upright:
-                    upright.save(output, format="JPEG", quality=85)
+                    with upright.transpose(Image.Transpose.FLIP_LEFT_RIGHT) as mirrored:
+                        mirrored.save(output, format="JPEG", quality=85)
         except OSError:
             logger.exception("摄像头照片解码失败")
             return jsonify(status="error", message="照片解码失败，请重试"), 502
