@@ -1,15 +1,16 @@
 const captureBtn = document.getElementById("captureBtn");
 const cameraMsg = document.getElementById("cameraMsg");
 const cameraPreview = document.getElementById("cameraPreview");
+const faceResult = document.getElementById("faceResult");
 let photoUrl = null;
 
 captureBtn.addEventListener("click", async () => {
   if (captureBtn.disabled) return;
   captureBtn.disabled = true;
-  captureBtn.textContent = "正在拍摄…";
-  cameraMsg.textContent = "正在拍摄，请稍候…";
+  captureBtn.textContent = "正在拍摄并比对…";
+  cameraMsg.textContent = "正在拍摄并比对，首次加载模型可能稍慢…";
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  const timeout = setTimeout(() => controller.abort(), 90000);
   let nextUrl = null;
   try {
     const res = await fetch("/capture", { method: "POST", signal: controller.signal });
@@ -30,6 +31,16 @@ captureBtn.addEventListener("click", async () => {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
     photoUrl = nextUrl;
     nextUrl = null;
+    let comparison;
+    try {
+      comparison = JSON.parse(res.headers.get("X-Face-Result") || "null");
+    } catch {
+      comparison = null;
+    }
+    faceResult.hidden = false;
+    faceResult.textContent = comparison?.status === "ok" && Number.isFinite(comparison.similarity)
+      ? `与参考照片的相似度：${comparison.similarity.toFixed(4)}（余弦值，越接近 1 越相似，非概率） · 比对耗时 ${(comparison.elapsed_ms / 1000).toFixed(2)} 秒`
+      : (comparison?.message || "照片已拍摄，未取得比对结果");
     cameraMsg.textContent = `拍摄成功 · ${new Date().toLocaleTimeString()}`;
   } catch (err) {
     cameraMsg.textContent = err.name === "AbortError"

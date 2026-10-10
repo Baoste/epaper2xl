@@ -11,3 +11,6 @@ venv/
 
 *.log
 *.tmp
+
+.face_cache/
+models/

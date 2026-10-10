@@ -93,7 +93,8 @@ input[type="text"] {
   margin-top: 20px;
 }
 
-#cameraMsg {
+#cameraMsg,
+#faceResult {
   margin: 0;
   color: #ffcc70;
   font-size: 0.95rem;

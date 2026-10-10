@@ -1,4 +1,5 @@
 import subprocess
+import json
 import unittest
 from io import BytesIO
 from unittest.mock import patch
@@ -10,6 +11,11 @@ import server
 class CameraTests(unittest.TestCase):
     def setUp(self):
         self.client = server.app.test_client()
+        comparison = patch("server.compare_photo", return_value={
+            "status": "ok", "similarity": 0.7654, "elapsed_ms": 120,
+        })
+        self.compare = comparison.start()
+        self.addCleanup(comparison.stop)
 
     def test_capture_returns_uncached_jpeg(self):
         photo = Image.new("RGB", (80, 40), "blue")
@@ -32,9 +38,22 @@ class CameraTests(unittest.TestCase):
             self.assertLess(bottom[2], 50)
         self.assertEqual(response.mimetype, "image/jpeg")
         self.assertEqual(response.headers["Cache-Control"], "no-store")
+        self.assertEqual(json.loads(response.headers["X-Face-Result"])["similarity"], 0.7654)
+        self.compare.assert_called_once_with(response.data)
         self.assertEqual(run.call_args.args[0][0], "rpicam-still")
         self.assertEqual(run.call_args.kwargs["timeout"], 20)
         self.assertFalse(server.camera_lock.locked())
+
+    def test_comparison_unavailable_still_returns_photo(self):
+        self.compare.return_value = {"status": "unavailable", "message": "缺少模型"}
+        buffer = BytesIO()
+        Image.new("RGB", (64, 48)).save(buffer, format="JPEG")
+        with patch("server.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess([], 0, buffer.getvalue(), b"")
+            response = self.client.post("/capture")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "image/jpeg")
+        self.assertEqual(json.loads(response.headers["X-Face-Result"]), self.compare.return_value)
 
     def test_busy_camera_does_not_launch_another_process(self):
         with server.camera_lock, patch("server.subprocess.run") as run:

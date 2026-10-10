@@ -1,4 +1,5 @@
 import logging
+import json
 import os
 import signal
 import subprocess
@@ -12,6 +13,7 @@ from typing import List, Optional, Tuple
 from PIL import Image
 from flask import Flask, Response, send_from_directory, redirect, request, jsonify
 from werkzeug.utils import secure_filename
+from face_compare import compare_photo
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("LMDBPlayer")
@@ -232,10 +234,15 @@ def capture_photo():
         except OSError:
             logger.exception("摄像头照片解码失败")
             return jsonify(status="error", message="照片解码失败，请重试"), 502
-        # 照片直接传给浏览器，不在 SD 卡上累积文件。
+        jpeg = output.getvalue()
+        comparison = compare_photo(jpeg)
+        # 照片和对应结果在同一个响应返回，避免多客户端串图。
         return Response(
-            output.getvalue(), mimetype="image/jpeg",
-            headers={"Cache-Control": "no-store"},
+            jpeg, mimetype="image/jpeg",
+            headers={
+                "Cache-Control": "no-store",
+                "X-Face-Result": json.dumps(comparison, ensure_ascii=True),
+            },
         )
     except FileNotFoundError:
         return jsonify(status="error", message="找不到 rpicam-still，请先安装 rpicam-apps"), 503
