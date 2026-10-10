@@ -72,7 +72,8 @@ def main():
     )
     logger.info(f"Print {greeting}")
 
-    # time.sleep(1200)
+    time.sleep(1200)
+    
     # pid = search_existing_display_scripts()
     # if not pid:
     #     url = "http://127.0.0.1/play_movie"
