@@ -9,6 +9,9 @@ import server
 
 class CameraTests(unittest.TestCase):
     def setUp(self):
+        daytime = patch("server.is_rest_time", return_value=False)
+        daytime.start()
+        self.addCleanup(daytime.stop)
         self.client = server.app.test_client()
         comparison = patch("server.compare_photo", return_value={
             "status": "ok", "similarity": 0.7654, "elapsed_ms": 120,

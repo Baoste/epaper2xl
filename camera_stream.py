@@ -132,6 +132,11 @@ class PersistentCamera:
                 self._stop_locked()
             raise
 
+    def pause(self):
+        """Release the device for nighttime; a later capture() can reopen it."""
+        with self._lifecycle:
+            self._stop_locked()
+
     def close(self):
         with self._lifecycle:
             with self._condition:

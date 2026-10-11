@@ -77,6 +77,18 @@ class CameraStreamTests(unittest.TestCase):
         process.terminate.assert_called_once()
         self.assertIsNone(camera._process)
 
+    def test_pause_allows_reopening_next_morning(self):
+        camera, process, spawn = self.make_camera()
+        camera.pause()
+        process.terminate.assert_called_once()
+        self.assertFalse(camera._closed)
+        self.assertIsNone(camera._frame)
+        process.stdout = FeedPipe()
+        process.poll.return_value = None
+        camera._start()
+        self.assertEqual(spawn.call_count, 2)
+        self.assertIs(camera._process, process)
+
     def test_close_wakes_capture_and_prevents_reopening(self):
         camera, _, spawn = self.make_camera()
         waiting = threading.Event()

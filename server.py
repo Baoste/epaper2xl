@@ -15,7 +15,7 @@ from flask import Flask, Response, send_from_directory, redirect, request, jsoni
 from werkzeug.utils import secure_filename
 from face_compare import compare_photo
 from camera_stream import CameraError, PersistentCamera
-from presence_monitor import run_monitor
+from presence_monitor import REST_TEXT, is_rest_time, run_monitor
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("LMDBPlayer")
@@ -95,11 +95,16 @@ def start_display(cmd: List[str], *, startup: bool = False, automatic: bool = Fa
 def show_presence(text):
     """Refresh changed text only; wait for completion without interrupting manual work."""
     global presence_displayed
+    if is_rest_time():
+        text = REST_TEXT
     monitor_stop.set()
     with display_lock:
         if presence_displayed == (text, display_revision):
             return
-    proc = start_display([PYTHON, DISPLAY_IMG, "--img_path", "", "--text", text], automatic=True)
+    proc = start_display(
+        [PYTHON, DISPLAY_IMG, "--img_path", "", "--text", text],
+        automatic=text != REST_TEXT,
+    )
     if proc is None:
         return  # Retry on the next detection after the current display operation ends.
     while proc.poll() is None:
@@ -112,8 +117,20 @@ def show_presence(text):
             logger.warning("自动工位文字显示失败，下轮重试")
 
 
+class RestPeriodError(RuntimeError):
+    pass
+
+
+def pause_camera():
+    with camera_lock:
+        camera.pause()
+
+
 def capture_and_compare():
     """Caller holds camera_lock for both the camera and shared OpenCV models."""
+    if is_rest_time():
+        camera.pause()
+        raise RestPeriodError("夜间休息中，08:00 恢复拍摄和检测")
     raw = camera.capture()
     output = BytesIO()
     try:
@@ -124,6 +141,9 @@ def capture_and_compare():
     except OSError as exc:
         raise ValueError("摄像头照片解码失败") from exc
     jpeg = output.getvalue()
+    if is_rest_time():
+        camera.pause()
+        raise RestPeriodError("夜间休息中，08:00 恢复拍摄和检测")
     return jpeg, compare_photo(jpeg)
 
 
@@ -269,6 +289,8 @@ def capture_photo():
                 "X-Face-Result": json.dumps(comparison, ensure_ascii=True),
             },
         )
+    except RestPeriodError as exc:
+        return jsonify(status="resting", message=str(exc)), 409
     except FileNotFoundError:
         return jsonify(status="error", message="找不到 rpicam-vid，请先安装 rpicam-apps"), 503
     except TimeoutError:
@@ -334,7 +356,7 @@ if __name__ == "__main__":
         target=wifi_startup_monitor, name="wifi-startup-monitor", daemon=True
     )
     presence_thread = threading.Thread(
-        target=run_monitor, args=(capture_for_presence, show_presence, service_stopping),
+        target=run_monitor, args=(capture_for_presence, show_presence, service_stopping, pause_camera),
         name="presence-monitor", daemon=True,
     )
     try:

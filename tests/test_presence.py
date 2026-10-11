@@ -1,4 +1,5 @@
 import threading
+from datetime import datetime
 import unittest
 from unittest.mock import Mock, patch
 
@@ -7,6 +8,11 @@ from presence_monitor import ABSENT_TEXT, OWNER_TEXT, VISITOR_TEXT, PresencePoli
 
 
 class PresenceTests(unittest.TestCase):
+    def setUp(self):
+        clock = patch("presence_monitor.local_now", return_value=datetime(2026, 10, 11, 12))
+        clock.start()
+        self.addCleanup(clock.stop)
+
     def test_three_consecutive_low_scores_and_intervals(self):
         policy = PresencePolicy()
         low = {"status": "ok", "similarity": .37999}
@@ -68,6 +74,9 @@ class PresenceTests(unittest.TestCase):
 
 class PresenceDisplayTests(unittest.TestCase):
     def setUp(self):
+        daytime = patch("server.is_rest_time", return_value=False)
+        daytime.start()
+        self.addCleanup(daytime.stop)
         for name, value in (("display_process", None), ("display_revision", 0),
                             ("presence_displayed", None), ("monitor_stop", threading.Event()),
                             ("service_stopping", threading.Event())):
