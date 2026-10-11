@@ -10,12 +10,12 @@ class PresenceTests(unittest.TestCase):
     def test_three_consecutive_low_scores_and_intervals(self):
         policy = PresencePolicy()
         low = {"status": "ok", "similarity": .37999}
-        self.assertEqual(policy.observe(low), (1, None))
-        self.assertEqual(policy.observe(low), (1, None))
-        self.assertEqual(policy.observe(low), (1, VISITOR_TEXT))
-        self.assertEqual(policy.observe(low), (1, VISITOR_TEXT))
+        self.assertEqual(policy.observe(low), (2, None))
+        self.assertEqual(policy.observe(low), (2, None))
+        self.assertEqual(policy.observe(low), (2, VISITOR_TEXT))
+        self.assertEqual(policy.observe(low), (2, VISITOR_TEXT))
         self.assertEqual(policy.observe({"status": "ok", "similarity": .38}), (60, OWNER_TEXT))
-        self.assertEqual(policy.observe(low), (1, None))
+        self.assertEqual(policy.observe(low), (2, None))
 
     def test_no_face_errors_and_multiple_faces_reset_streak(self):
         for status in ("no_face", "multiple_faces", "error", "unavailable"):
@@ -25,7 +25,7 @@ class PresenceTests(unittest.TestCase):
                 policy.observe(low)
                 policy.observe(low)
                 self.assertEqual(policy.observe({"status": status}), (5, ABSENT_TEXT if status == "no_face" else None))
-                self.assertEqual(policy.observe(low), (1, None))
+                self.assertEqual(policy.observe(low), (2, None))
 
     def test_invalid_scores_do_not_identify_owner_or_visitor(self):
         for score in (None, "0.5", float("nan"), float("inf")):
@@ -51,7 +51,7 @@ class PresenceTests(unittest.TestCase):
 
         stop.wait.side_effect = wait
         run_monitor(capture, events.append, stop)
-        self.assertEqual(events, ["capture", 1, "capture", 1, "capture", VISITOR_TEXT, 1,
+        self.assertEqual(events, ["capture", 2, "capture", 2, "capture", VISITOR_TEXT, 2,
                                   "capture", OWNER_TEXT, 60, "capture", ABSENT_TEXT, 5])
 
     def test_shutdown_during_capture_does_not_display(self):

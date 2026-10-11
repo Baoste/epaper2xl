@@ -23,7 +23,7 @@ class PresencePolicy:
                     self.low_count = 0
                     return 60, OWNER_TEXT
                 self.low_count = min(3, self.low_count + 1)
-                return 1, VISITOR_TEXT if self.low_count == 3 else None
+                return 2, VISITOR_TEXT if self.low_count == 3 else None
         self.low_count = 0
         if status == "no_face":
             return 5, ABSENT_TEXT
