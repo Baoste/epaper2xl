@@ -14,3 +14,6 @@ venv/
 
 .face_cache/
 models/
+
+# 本地自动化测试，不提交到 Git
+/tests/
