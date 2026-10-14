@@ -15,7 +15,7 @@ from flask import Flask, Response, send_from_directory, redirect, request, jsoni
 from werkzeug.utils import secure_filename
 from face_compare import compare_photo
 from camera_stream import CameraError, PersistentCamera
-from presence_monitor import REST_TEXT, is_rest_time, run_monitor
+from presence_monitor import REST_TEXT, STATE_TEXTS, is_rest_time, run_monitor
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("LMDBPlayer")
@@ -95,26 +95,28 @@ def start_display(cmd: List[str], *, startup: bool = False, automatic: bool = Fa
 def show_presence(text):
     """Refresh changed text only; wait for completion without interrupting manual work."""
     global presence_displayed
-    if is_rest_time():
+    if is_rest_time() and text not in STATE_TEXTS["rest"]:
         text = REST_TEXT
     monitor_stop.set()
     with display_lock:
         if presence_displayed == (text, display_revision):
-            return
+            return True
     proc = start_display(
         [PYTHON, DISPLAY_IMG, "--img_path", "", "--text", text],
-        automatic=text != REST_TEXT,
+        automatic=text not in STATE_TEXTS["rest"],
     )
     if proc is None:
-        return  # Retry on the next detection after the current display operation ends.
+        return False  # Retry after the current display operation ends.
     while proc.poll() is None:
         if service_stopping.wait(0.2):
-            return
+            return False
     with display_lock:
         if proc.returncode == 0 and display_process is proc:
             presence_displayed = (text, display_revision)
+            return True
         elif proc.returncode != 0:
             logger.warning("自动工位文字显示失败，下轮重试")
+    return False
 
 
 class RestPeriodError(RuntimeError):
